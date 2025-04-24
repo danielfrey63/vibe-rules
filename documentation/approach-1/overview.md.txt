@@ -1,0 +1,225 @@
+## Reverse-Engineering Source Code: Roles and Process
+
+This document outlines the roles and process for capturing the functionalities of source code through reverse-engineering into features. The goal is to understand and document existing functionalities in given source code without extending or questioning them. Domain expertise is derived directly from the code, and the **PO** coordinates with all other roles in the process.
+
+## Role Descriptions
+
+### 1. PO (Product Owner)
+
+- Defines the goal: to fully capture the functionalities based on the given source code into a feature tree.
+- Compiles a list of tasks to be executed in order to achieve the full reverse-engineering of the whole source code.
+- Assigns tasks to roles and prioritizes code areas.
+- Monitors progress of the tasks
+- Adapts the task list based on recent findings 
+- Resolves ambiguities and conflicts by adapting or creating new tasks.
+- Validates final features and test results.
+- Manages the overall feature lifecycle, including creating, assigning, prioritizing, and monitoring features based on the defined process and structure (see Feature Management section).
+
+### 2. DEV (Code Analyst / Reverse Engineer / Business Analyst)
+
+- Receives and executes analysis tasks assigned by the PO.
+- Analyzes code structure (modules, classes, functions, stored procedures, databases).
+- Dives down into code to understand functionalities, including algorithms and data flows.
+- Uses static analysis to derive functionalities.
+- Derives domain logic directly from the code (e.g., via comments, variable names, function names, etc.).
+- Evaluates the complexity of a feature.
+- May propose to break down assigned features into more granular sub-features during analysis.
+- Proposes amendments and corrections to features back to the PO.
+
+### 3. DOC (Documentation Engineer)
+
+- Collects findings and creates structured documentation.
+- Describes functions, modules, and data flows in technical language.
+- Creates diagrams (e.g., flowcharts, UML).
+- Verifies documentation completeness.
+- Updates documentation iteratively.
+
+### 4. TST (Test Engineer)
+
+- Develops tests (e.g., unit tests, integration tests) to verify functionalities.
+- Performs dynamic analysis by executing code.
+- Documents test results and reports ambiguities.
+- Focuses on validating functionalities without seeking vulnerabilities.
+- Receives and executes testing tasks assigned by the PO.
+- Test results may lead to the creation of new features (e.g., for ambiguities) by the PO.
+
+## Process Description
+
+The process is iterative to capture all functionalities step-by-step. The **PO** guides collaboration and prioritizes tasks being assigned to other roles.
+
+1. **Initial Planning**:
+- The PO retrieves the scope based on the project's source code.
+- The DEV conducts an initial investigation.
+- PO creates initial high-level tasks and assigns them to DEV, TST, and DOC (e.g., "Analyze main logic," "Start tests for module X," "Document findings for module Y"), and sets priorities
+
+2. **Analysis and Capture**:
+- The DEV examines the code and derives functionalities.
+- The TST develops parallel tests for validation.
+- Findings are documented by the DOC.
+
+3. **Documentation and Validation**:
+- The DOC creates descriptions and diagrams.
+- The TST runs tests and reports ambiguities.
+- The PO reviews progress and decides on further analysis.
+
+4. **Iteration (Loop)**:
+- If ambiguities persist, the PO assigns re-analysis.
+- The TST adjusts tests, and the DOC updates documentation.
+- The loop repeats until all functionalities are captured.
+
+5. **Completion**:
+- The PO validates documentation and test results.
+- All roles verify completeness.
+- Documentation is finalized and delivered.
+
+### Flowchart
+
+The following diagram illustrates the process with an iterative loop for resolving ambiguities.
+
+![Process Flow Diagram](overview.png)
+
+## Feature Management
+
+This part provides a comprehensive overview of how features are managed.
+
+### Data Structure
+
+#### Feature Model
+
+Features are the primary unit of work in the system. We distinguish between top-level features and sub-features, both commonly addressed as features. Each feature is represented as a JSON object with the following structure:
+
+Example for a top-level feature:
+
+```json
+{
+  "id": "1",
+  "title": "Feature Title",
+  "description": "Brief feature description",
+  "dependencies": ["2", "3"],
+  "priority": "high|medium|low",
+  "parentId": "",
+  "details": "Detailed implementation instructions",
+  "testStrategy": "Verification approach details",
+  "sub-features": ["1.1", "1.2"]
+}
+```
+
+Example for a sub-feature:
+
+```json
+{
+  "id": "1.1",
+  "title": "Sub-Feature Title",
+  "description": "Brief sub-feature description",
+  "dependencies": ["2.1", "3"],
+  "priority": "high|medium|low",
+  "parentId": "1",
+  "details": "Detailed implementation instructions",
+  "testStrategy": "Verification approach details",
+  "sub-features": ["1.1.1", "1.1.2"]
+}
+```
+
+Key properties:
+
+- `id`: Unique identifier for the feature
+- `title`: Brief, descriptive title
+- `description`: Concise summary of what the feature involves
+- `dependencies`: Array of feature IDs that this feature depends on
+- `priority`: Importance level (high, medium, low)
+- `details`: In-depth implementation details
+- `parentId`: Reference to the parent feature ID, can be omitted or empty if a top-level feature
+- `sub-features`: Array of sub-feature IDs
+- `testStrategy`: Approach for verifying feature completion
+
+#### Parent-Child Structure
+
+Features and sub-features form a hierarchical parent-child relationship:
+
+1. Each feature can have multiple sub-features
+2. sub-features are stored directly within their parent feature's `sub-features` array
+3. sub-features maintain a reference to their parent via the `parentId` property
+4. The system prevents circular relationships (a feature cannot be a sub-feature of its own sub-feature)
+
+#### Referencing Features
+
+Top-level features and sub-features are referenced using a dot notation format:
+
+- `featureId` (e.g., "5" refers to feature #5)
+- `parentId.sub-featureId` (e.g., "5.2" refers to sub-feature #2 of feature #5)
+- `grandParentId.parentId.sub-featureId` (e.g., "3.2.1" refers to sub-feature #1 of sub-feature #2 of feature #3)
+- Within the system, sub-features can be referenced by their full dot-notation ID
+
+### Dependencies
+
+#### Feature Dependencies
+
+Features can depend on other features:
+
+- Dependencies are stored as an array of feature IDs
+- The system can detect and prevent circular dependencies by validating the dependency chain before adding new dependencies
+- As soon as all sub-features would be valid dependencies, the parent feature is referenced instead of the sub-features.
+- Expansion of features into sub-features invokes double-checking references and readdressing dependencies into the finer granular new sub-features.
+- Dependencies are always pointing to the finest granular dependency which applies
+
+Dependency handling:
+
+- If adding a dependency would create a cycle (where feature A depends on feature B which depends on feature A, directly or indirectly), the system resolves the cycle by extracting the dependent functionality into a new feature and refers to it from the affected features.
+
+### Feature Management Operations
+
+#### Creating Features
+
+Features can be created:
+
+1. Using AI to generate feature details from an investigation of the source code
+2. By converting an existing sub-feature to a top-level feature
+3. Expansion an existing feature into sub-features based on finer granular investigation of the source code
+4. The feature id is created based on being top-level or the parent feature id
+5. There is no limit to sub-feature depth
+
+#### Moving Features
+
+The system supports converting top-level features to sub-features, sub-features to top-level features and moving features between parents:
+
+1. If attached to a parent feature, it is removed from the parent features array
+2. A new feature is created with the same feature's properties
+3. The new feature is added to another parent feature's sub-features array or as a new top-level feature
+4. The new feature id is adjusted
+5. The system validates that this conversion doesn't create circular dependencies
+
+#### Removing Features
+
+Features can be removed:
+
+1. If it is a sub-feature, it is removed from the parent's sub-features array and deleted
+2. If it is a top-level feature, it simply is deleted
+3. Deleting features deletes all sub-features
+
+### Feature Expansion
+
+#### AI-Generated sub-features
+
+Features can be expanded into sub-features using AI:
+
+1. The system analyzes the feature description and details by consulting the source code
+2. AI generates a recommended set of sub-features
+3. Each sub-feature includes the fields defined for a feature
+
+#### Complexity-Based Expansion
+
+The system can analyze feature complexity to determine the appropriate number of sub-features:
+
+1. Features are analyzed and assigned a complexity score (1-10)
+2. More complex features are recommended to have more sub-features
+3. The complexity analysis provides reasoning for the score
+
+### Console Display
+
+Features and sub-features are displayed in the console using formatted tables and boxes:
+
+1. Features are displayed with colored borders based on their type
+2. sub-features are displayed in tables with their ID, title, and dependencies
+3. The system uses different colors to indicate priority
+
+The console display provides a clear visual hierarchy indication, making it easy to understand feature relationships at a glance.
